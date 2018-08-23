@@ -11,6 +11,7 @@ Replace this with a description of the program.
 """
 import utils
 import random
+import math
 
 # Caesar Cipher
 
@@ -24,11 +25,24 @@ def encrypt_caesar(plaintext):
     Therefore, if putting ord('Z') - ord('A'), as the base character
     encrypt_alpha = ((ord('alpha') - ord('A')) + 3) % 26 + ord('A') (total alphabet character)
     """
-    return ''.join([encrypt(ch,3) for ch in plaintext])
-    # raise NotImplementedError  # Your implementation here
+    result = ''
 
-def encrypt(character, letter):
-    return chr((((ord(character)-ord('A')) + letter) % 26)+ord('A'))
+    for letter in plaintext:
+        if letter.isalpha():
+            letter = shift(letter,3)
+            result += letter
+
+    return result
+
+def shift(character, shift):
+    """ shift letter by shift letter in the alphabet
+
+    This function takes a character string, which should be an upper case letter,
+    and a shift value, which is an integer. It returns the letter shifted by
+    the shift in the alphabet. The alphabet wraps around such that 'A' shifted -1
+    is 'Z' and Z shifted +1 is 'A'
+    """
+    return chr((((ord(character)-ord('A')) + shift) % 26)+ord('A'))
 
 
 def decrypt_caesar(ciphertext):
@@ -39,10 +53,8 @@ def decrypt_caesar(ciphertext):
 
     """
     # raise NotImplementedError  # Your implementation here
-    return ''.join([decrypt(ch,3) for ch in ciphertext])
+    return ''.join([shift(ch,-3) for ch in ciphertext if ch.isalpha()])
 
-def decrypt(character,letter):
-    return chr((((ord(character)-ord('A')) - letter) % 26)+ord('A'))
 
 
 # Vigenere Cipher
@@ -52,27 +64,22 @@ def encrypt_vigenere(plaintext, keyword):
 
     Add more implementation details here.
 
-    Using decrypt helper function from above, pass in the keyword, as a number
+    Using shift helper function from above, pass in the keyword, as a number
+
+    Getting the difference of hte length of plaintext and keyword. go through keyword and plaintext and shift each character
 
     The keyword is repeated. Therefore, repeat the keyword by '+' each of them until the same length as the plain text
 
     slice the key word for the same length as the text
     """
+    result = ''
 
-    # raise NotImplementedError  # Your implementation here
-    keyword_list = [ord(ch)-ord('A') for ch in keyword]
-    while len(keyword_list) < len(plaintext):
-        keyword_list += keyword_list
+    diff = math.ceil(len(plaintext)/len(keyword))
 
+    for letter,key in zip(plaintext,keyword*diff):
+        result += shift(letter,ord(key)-ord('A')) # indicating how many shift we need
 
-    keyword_list = keyword_list[:len(plaintext)] # slice keyword on the same length as plain text
-    # print('keyword transformation', keyword_list)
-
-    encrypted = ''.join(encrypt(c,int(l)) for c, l in zip(plaintext,keyword_list))
-    # print('encrypted ', encrypted)
-    return encrypted
-
-
+    return result
 
 
 
@@ -87,19 +94,13 @@ def decrypt_vigenere(ciphertext, keyword):
        3. Slice key word to make create the same length as the ciphertext
     Loop through ciphertext, using comprehension list and create a decryption on each ciphertext
     """
-    keyword_list = [ord(ct)-ord('A') for ct in keyword]
+    result = ''
+    diff = math.ceil(len(ciphertext)/len(keyword))
 
-    print('keyword_list', keyword_list)
+    for letter,key in zip(ciphertext,keyword*diff):
+        result += shift(letter,ord('A')-ord(key)) # indicating left shift
 
-    while len(keyword_list) < len(ciphertext):
-        keyword_list += keyword_list
-    # slice into the same length as the ciphertext
-    keyword_list = keyword_list[:len(ciphertext)]
-    # print('keyword_list', keyword_list)
-
-    decrypted = ''.join([decrypt(c,int(l)) for c, l in zip(ciphertext,keyword_list)]) # decrypt each keyword
-    # print('decrypt letter', decrypted)
-    return decrypted
+    return result
 
 
 
@@ -124,30 +125,45 @@ def generate_private_key(n=8):
 
     @return 3-tuple `(w, q, r)`, with `w` a n-tuple, and q and r ints.
     """
-    w_start = random.randint(2,10) # returns either 2 - 10 with uniform probability
-    sum = w_start
-    w = []
-    for i in range(n):
-        next_w = random.randint(sum+1, 2*sum)
-        sum += next_w
-        w.append(next_w)
+    w = tuple(get_super_incr_series(n,2,10))
+    q = get_next_incr_series(w)
+    r = get_coprime(q)
+    return w, q, r
 
-    tuple_w = tuple(w) # converting w to tuple
+def get_super_incr_series(n,i_start,i_end):
+    """ Construct a list containing a superincreasing series. List is of length
+    n. The first start number is a random number between i_start, and i_end
+    inclusive
+    """
+    start = random.randint(i_start,i_end)
+    incr_series = [start]
 
-    print ('super increasing sequence ', utils.is_superincreasing(tuple_w))
+    while len(incr_series) < n:
+        incr_series.append(get_next_incr_series(incr_series))
 
-    # choose q
-    q = random.randint(sum+1, 2*sum)
+    return incr_series
 
-    # discover integer 'r' between 2 and q
-    # loop through from 2 - q-1 and generate check if number is coprime of q if it is then break the loop
-    r = 2
-    for i in range (q-1):
-        if utils.coprime(i,q):
-            r = i
-            break
-    print('r is the number ', r)
-    return (tuple_w,q,r)
+
+def get_next_incr_series(nums):
+    """ Takes a super increasing series and returns an integer that is larger
+    than the sum of the super increasing series, i.e. a value that could come next
+    in the series. The return value is a number between the sum of the series + 1
+    and the sum of the series*2
+    """
+    total = sum(nums)
+    return random.randint(total+1, total*2)
+
+
+def get_coprime(q):
+    """ returns a random coprime of q that is less than q.
+    """
+    r = random.randint(2,q-1)
+    while not utils.coprime(q,r):
+        r = random.randint(2,q-1)
+
+    return r
+
+
 
 
 
@@ -238,7 +254,7 @@ def decrypt_mh(message, private_key):
         for i, w_i in enumerate(w_rev):
             if w_i <= c_prime:
                 byte[i]=1
-                c_prime -= w_i*byte[i]
+                c_prime -= w_i
 
         result += chr(utils.bits_to_byte(byte[::-1]))
 
