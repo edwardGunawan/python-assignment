@@ -58,7 +58,7 @@ def get_input(binary=False):
 
 def set_output(output, binary=False):
     print("* Output *")
-    choice = _get_selection("(F)ile or (S)tring? ", "FS")
+    choice = _get_selection("Do you want to out put in (F)ile or (S)tring? ", "FS")
     if choice == 'S':
         print(output)
     else:
